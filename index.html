@@ -1,0 +1,250 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bluetooth + Wi‑Fi (WebRTC) P2P Chat — Demo</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;margin:18px}
+    h1{font-size:1.4rem}
+    .row{display:flex;gap:12px;align-items:flex-start}
+    .col{flex:1;min-width:260px}
+    textarea{width:100%;height:120px}
+    input[type=text]{width:100%}
+    button{margin-top:6px}
+    #messages{height:200px;overflow:auto;border:1px solid #ddd;padding:8px;background:#fafafa}
+    .msg{margin:6px 0}
+    .mine{font-weight:600}
+    .info{color:#555;font-size:.9rem}
+    footer{margin-top:18px;font-size:.85rem;color:#666}
+    .section{border:1px solid #eee;padding:12px;border-radius:8px;margin-bottom:12px}
+    .danger{color:#8a0000}
+  </style>
+</head>
+<body>
+  <h1>Bluetooth + Wi‑Fi (WebRTC) P2P Chat — Demo</h1>
+  <p class="info">This page demonstrates two transport options:
+    <ul>
+      <li><strong>WebRTC (Wi‑Fi / hotspot)</strong> — Peer‑to‑peer chat using WebRTC. Works well when both devices are on the same Wi‑Fi or one device is a hotspot. Signaling is manual (copy/paste) in this demo.</li>
+      <li><strong>Bluetooth (BLE)</strong> — Connect to a BLE peripheral device and read/write a text characteristic. <em>Important:</em> browsers cannot act as BLE <strong>peripherals</strong>, only as centrals. That means two phones using only their browsers cannot reliably chat over Bluetooth without a native/peripheral role on one side (e.g., microcontroller or an app).</li>
+    </ul>
+  </p>  <div class="row">
+    <div class="col section">
+      <h2>WebRTC (Wi‑Fi / Hotspot) — Peer chat</h2>
+      <p class="info">Use this if both devices are on the same network (including one device creating a hotspot). This demo uses manual signaling: create an offer, copy the SDP to the remote device and paste the answer back.</p><div>
+    <label>Local name: <input id="localName" type="text" value="UserA"></label>
+  </div>
+
+  <div style="margin-top:8px">
+    <button id="createOfferBtn">Create Offer (act as caller)</button>
+    <button id="createAnswerBtn">Create Answer (act as callee)</button>
+    <button id="startConnBtn">Start Data Channel (caller only)</button>
+  </div>
+
+  <div style="margin-top:8px">
+    <label>Local SDP (copy to other device):</label>
+    <textarea id="localSDP" readonly></textarea>
+  </div>
+
+  <div style="margin-top:8px">
+    <label>Remote SDP (paste from other device):</label>
+    <textarea id="remoteSDP"></textarea>
+    <button id="applyRemoteBtn">Apply Remote SDP</button>
+  </div>
+
+  <div style="margin-top:8px">
+    <div id="messages"></div>
+    <input id="chatInput" type="text" placeholder="Type message..." />
+    <button id="sendBtn">Send</button>
+  </div>
+  <p class="info">Tip: Use one device to create an offer and share the generated SDP with the other device (by copy/paste, QR, etc.). Then paste the answer back into the offerer.</p>
+</div>
+
+<div class="col section">
+  <h2>Bluetooth (BLE) — Connect to a peripheral</h2>
+  <p class="info">This connects your browser as a <strong>central</strong> to a Bluetooth LE peripheral. The peripheral must expose a writable characteristic that accepts text. Use apps like <em>nRF Connect</em> on another phone, or a microcontroller (ESP32, Nordic) set up as a BLE peripheral to test.</p>
+
+  <div>
+    <label>Service UUID: <input id="bleService" type="text" value="6e400001-b5a3-f393-e0a9-e50e24dcca9e"></label><br/>
+    <label>TX Characteristic (write): <input id="bleCharTx" type="text" value="6e400002-b5a3-f393-e0a9-e50e24dcca9e"></label><br/>
+    <label>RX Characteristic (notify): <input id="bleCharRx" type="text" value="6e400003-b5a3-f393-e0a9-e50e24dcca9e"></label>
+  </div>
+  <div style="margin-top:8px">
+    <button id="bleConnect">Connect BLE Peripheral</button>
+    <button id="bleDisconnect">Disconnect BLE</button>
+  </div>
+  <div style="margin-top:8px">
+    <div id="bleLog" style="height:120px;overflow:auto;border:1px solid #ddd;padding:6px;background:#fff"></div>
+    <input id="bleMsg" type="text" placeholder="Message to BLE peripheral" />
+    <button id="bleSend">Send to BLE</button>
+  </div>
+  <p class="danger">Note: Browser BLE support varies. Chrome on Android supports Web Bluetooth but cannot advertise or act as peripheral.</p>
+</div>
+
+  </div>  <footer>
+    <strong>Testing notes:</strong> For Wi‑Fi/hotspot chat, open this page on both devices. Use 'Create Offer' on one, copy the Local SDP to the other, click 'Create Answer' there, copy that answer back, and click 'Apply Remote SDP' on the first. For BLE, run a BLE peripheral that offers the given service/characteristics (the values default to Nordic UART Service UUIDs — many BLE UART peripherals use these).
+  </footer>  <script>
+  // ======= WebRTC P2P Chat (manual signalling) =======
+  let pc = null;
+  let dc = null;
+  const iceServers = [{urls: 'stun:stun.l.google.com:19302'}];
+
+  const createPeer = (isCaller) => {
+    pc = new RTCPeerConnection({iceServers});
+
+    pc.onicecandidate = (e) => {
+      if (!e.candidate) {
+        // ICE gathering finished
+        document.getElementById('localSDP').value = JSON.stringify(pc.localDescription);
+      }
+    };
+
+    pc.ondatachannel = (ev) => {
+      dc = ev.channel;
+      setupDataChannel();
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log('PC state', pc.connectionState);
+    };
+
+    if (isCaller) {
+      dc = pc.createDataChannel('chat');
+      setupDataChannel();
+    }
+  };
+
+  function setupDataChannel(){
+    if(!dc) return;
+    dc.onopen = () => appendMsg('System','DataChannel open');
+    dc.onclose = () => appendMsg('System','DataChannel closed');
+    dc.onmessage = (ev) => appendMsg('Peer', ev.data);
+  }
+
+  function appendMsg(who, text){
+    const box = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg';
+    div.innerHTML = '<span class="mine">'+who+':</span> '+escapeHtml(text);
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+
+  document.getElementById('createOfferBtn').addEventListener('click', async ()=>{
+    createPeer(true);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    // localSDP will be filled when ICE gathering completes
+    appendMsg('System','Offer created — copy Local SDP to remote.');
+  });
+
+  document.getElementById('createAnswerBtn').addEventListener('click', async ()=>{
+    // acting as callee: remote device will paste offer into remoteSDP and click Apply Remote SDP
+    createPeer(false);
+    appendMsg('System','Ready to accept remote offer. Paste remote SDP and click Apply Remote SDP. Then create answer by clicking Start Data Channel.');
+  });
+
+  document.getElementById('startConnBtn').addEventListener('click', async ()=>{
+    // create answer (callee step)
+    if(!pc) { alert('Create peer (Create Answer) first on this device.'); return; }
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    appendMsg('System','Answer created — copy Local SDP to the offerer.');
+  });
+
+  document.getElementById('applyRemoteBtn').addEventListener('click', async ()=>{
+    const txt = document.getElementById('remoteSDP').value.trim();
+    if(!txt) return alert('Paste remote SDP JSON here.');
+    try{
+      const obj = JSON.parse(txt);
+      if(!pc) createPeer(false); // if caller already created pc, fine
+      await pc.setRemoteDescription(obj);
+      appendMsg('System','Remote description applied.');
+    }catch(err){
+      alert('Invalid SDP (must be JSON of RTCSessionDescription)');
+    }
+  });
+
+  document.getElementById('sendBtn').addEventListener('click', ()=>{
+    const input = document.getElementById('chatInput');
+    const txt = input.value.trim();
+    if(!txt || !dc || dc.readyState !== 'open') return alert('Data channel not open or no message');
+    dc.send(txt);
+    appendMsg('Me', txt);
+    input.value = '';
+  });
+
+  // ======= Bluetooth (Web Bluetooth) =======
+  let bleDevice = null;
+  let bleServer = null;
+  let txChar = null; // write
+  let rxChar = null; // notify
+
+  function logBle(s){
+    const el = document.getElementById('bleLog');
+    const d = document.createElement('div'); d.textContent = s; el.appendChild(d); el.scrollTop = el.scrollHeight;
+  }
+
+  document.getElementById('bleConnect').addEventListener('click', async ()=>{
+    try{
+      const serviceUuid = document.getElementById('bleService').value.trim();
+      const txUuid = document.getElementById('bleCharTx').value.trim();
+      const rxUuid = document.getElementById('bleCharRx').value.trim();
+
+      logBle('Requesting device...');
+      bleDevice = await navigator.bluetooth.requestDevice({
+        filters: [{services: [serviceUuid]}],
+        optionalServices: [serviceUuid]
+      });
+      bleDevice.addEventListener('gattserverdisconnected', ()=>logBle('BLE disconnected'));
+      logBle('Connecting to GATT...');
+      bleServer = await bleDevice.gatt.connect();
+      const svc = await bleServer.getPrimaryService(serviceUuid);
+      txChar = await svc.getCharacteristic(txUuid);
+      rxChar = await svc.getCharacteristic(rxUuid);
+      await rxChar.startNotifications();
+      rxChar.addEventListener('characteristicvaluechanged', (e)=>{
+        const val = new TextDecoder().decode(e.target.value);
+        logBle('RX ← '+val);
+      });
+      logBle('Connected. You can send text messages to the peripheral using the "Send to BLE" button.');
+    }catch(err){
+      console.error(err); logBle('Error: '+(err.message||err));
+    }
+  });
+
+  document.getElementById('bleDisconnect').addEventListener('click', ()=>{
+    if(bleDevice && bleDevice.gatt.connected) bleDevice.gatt.disconnect();
+    logBle('Disconnected by user.');
+  });
+
+  document.getElementById('bleSend').addEventListener('click', async ()=>{
+    const txt = document.getElementById('bleMsg').value;
+    if(!txChar) return alert('Not connected or tx characteristic not found');
+    try{
+      const bytes = new TextEncoder().encode(txt);
+      // chunking in case peripheral expects small MTU
+      const CHUNK=100;
+      for(let i=0;i<bytes.length;i+=CHUNK){
+        const slice = bytes.slice(i,i+CHUNK);
+        await txChar.writeValue(slice);
+      }
+      logBle('TX → '+txt);
+    }catch(err){ logBle('Send error: '+err.message); }
+  });
+
+  // Compatibility checks
+  if(!('RTCPeerConnection' in window)){
+    appendMsg('System','Warning: WebRTC not supported in this browser.');
+  }
+  if(!('bluetooth' in navigator)){
+    const bleLog = document.getElementById('bleLog'); if(bleLog) bleLog.innerText = 'Web Bluetooth API not supported in this browser.';
+  }
+
+  </script></body>
+</html>

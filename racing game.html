@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Racing Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<style>
+    body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #333;
+}
+
+.game-container {
+    width: 300px;
+    height: 500px;
+    overflow: hidden;
+    position: relative;
+}
+
+.road {
+    width: 100%;
+    height: 100%;
+    background: gray;
+    position: relative;
+}
+
+.car {
+    width: 50px;
+    height: 100px;
+    background: red;
+    position: absolute;
+    bottom: 10px;
+    left: 125px;
+}
+
+</style>
+<body>
+    <div class="game-container">
+        <div class="road">
+            <div class="car" id="car"></div>
+        </div>
+    </div>
+    <script src="script.js">
+        document.addEventListener('keydown', function(event) {
+    const car = document.getElementById('car');
+    const left = parseInt(window.getComputedStyle(car).getPropertyValue('left'));
+
+    if (event.key === 'ArrowLeft' && left > 0) {
+        car.style.left = left - 10 + 'px';
+    } else if (event.key === 'ArrowRight' && left < 250) {
+        car.style.left = left + 10 + 'px';
+    }
+});
+
+    </script>
+</body>
+</html>

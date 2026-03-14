@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Elijah's Trail</title>
+</head>
+<body>
+    <form id="request-demo-form">
+        <h2>Request Demo</h2>
+
+        <label>Name</label>
+        <input name="name" id="name" type="text" placeholder="Your Name" required="required"><br>
+
+        <label>Your Job Position</label>
+        <input name="job_position" id="Job_position" type="text" placeholder="Job position" required="required"><br>
+
+        <label>Your company</label>
+        <input name="company" id="company" type="text" placeholder="company" required="required"><br>
+
+        <label>Country</label>
+        <select id="country" name="country" class="country-field" required="">
+            <option value="" disabled="" selected="">Select a country</option>
+            <option value="Afghanistan" data-code="+93">Afghanistan</option>
+            <option value="Albania" data-code="+355">Albania</option>
+            <option value="Algeria" data-code="+213">Algeria</option>
+            <!-- Include all other country options as in your original code -->
+            <option value="Zimbabwe" data-code="+263">Zimbabwe</option>
+        </select><br>
+
+        <label for="country-code">Country Code</label>
+        <input id="country-code" name="country_code" type="text" readonly="" required=""><br>
+
+        <label>Your Phone Number</label>
+        <input type="number" name="phone_number" placeholder="Your Phone Number"><br>
+
+        <label>Your E-mail</label>
+        <input type="email" name="email" placeholder="Your E-mail"><br>
+
+        <label>Your Company Web-Site</label>
+        <input type="url" name="company_website" placeholder="https://www.google.com/"><br>
+
+        <label>Your Facebook Page</label>
+        <input type="url" name="facebook_page" placeholder="https://www.facebook.com/"><br>
+
+        <label>Does your health facility have a good internet connection?</label><br>
+        <input type="radio" name="internet_connection" value="Yes"><label>Yes</label><br>
+        <input type="radio" name="internet_connection" value="No"><label>No</label><br>
+        <input type="radio" name="internet_connection" value="Unsure"><label>Unsure</label><br>
+
+        <label>Which product are you most interested in?</label><br>
+        <input type="radio" name="product_interest" value="Hospital Information System"><label>Hospital Information System</label><br>
+        <input type="radio" name="product_interest" value="Clinic Information System"><label>Clinic Information System</label><br>
+        <input type="radio" name="product_interest" value="Electronic Medical Record (EMR)"><label>Electronic Medical Record (EMR)</label><br>
+        <input type="radio" name="product_interest" value="Industry Clinic System"><label>Industry Clinic System</label><br>
+        <input type="radio" name="product_interest" value="Dental Clinic Management System"><label>Dental Clinic Management System</label><br>
+        <input type="radio" name="product_interest" value="Pharmacy Management System"><label>Pharmacy Management System</label><br>
+
+        <label>What problem(s) are you trying to solve?</label>
+        <br><input type="checkbox" name="problems" value="No Current System"><label>No Current System</label>
+        <br><input type="checkbox" name="problems" value="Inefficient Billing"><label>Inefficient Billing</label>
+        <br><input type="checkbox" name="problems" value="Data Capture Improvement"><label>Data Capture Improvement</label>
+        <br><input type="checkbox" name="problems" value="Outdated Technology"><label>Outdated Technology</label>
+        <br><input type="checkbox" name="problems" value="Lack of Feature"><label>Lack of Feature</label>
+        <br><input type="checkbox" name="problems" value="IT Staff Shortage"><label>IT Staff Shortage</label>
+        <br><input type="checkbox" name="problems" value="Integration Issues"><label>Integration Issues</label>
+        <br><input type="checkbox" name="problems" value="Unsupported Products"><label>Unsupported Products</label>
+        <br><input type="checkbox" name="problems" value="High Maintenance/Subscription Cost"><label>High Maintenance/Subscription Cost</label>
+        <br><input type="checkbox" name="problems" value="Compliance Issues"><label>Compliance Issues</label>
+        <br><input type="checkbox" name="problems" value="Need Multilingual Support"><label>Need Multilingual Support</label>
+        <br><input type="checkbox" name="problems" value="Other"><label>Other</label>
+
+        <br><label>How Do You Know About Ksatria?</label>
+        <br><input type="radio" name="know_about_ksatria" value="Internet Search"><label>Internet Search</label>
+        <br><input type="radio" name="know_about_ksatria" value="Mailout"><label>Mailout</label>
+        <br><input type="radio" name="know_about_ksatria" value="Reference"><label>Reference</label>
+        <br><input type="radio" name="know_about_ksatria" value="WA Text"><label>WA Text</label>
+        <br><input type="radio" name="know_about_ksatria" value="Other"><label>Other</label>
+
+        <br><input type="submit" value="Submit">
+    </form>
+
+    <script>
+        // Update country code when country is selected
+        document.getElementById('country').addEventListener('change', function() {
+            var selectedOption = this.options[this.selectedIndex];
+            var countryCode = selectedOption.getAttribute('data-code');
+            document.getElementById('country-code').value = countryCode;
+        });
+
+        // Handle form submission
+        document.getElementById('request-demo-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            // Collect form data
+            var formData = new FormData(this);
+            var data = {};
+
+            // Group data by key, handling multiple values as arrays
+            for (var pair of formData.entries()) {
+                var key = pair[0];
+                var value = pair[1];
+                if (data[key]) {
+                    if (Array.isArray(data[key])) {
+                        data[key].push(value);
+                    } else {
+                        data[key] = [data[key], value];
+                    }
+                } else {
+                    data[key] = value;
+                }
+            }
+
+            // Format data into a readable string
+            var dataString = '';
+            for (var key in data) {
+                if (Array.isArray(data[key])) {
+                    dataString += key + ': ' + data[key].join(', ') + '\n';
+                } else {
+                    dataString += key + ': ' + data[key] + '\n';
+                }
+            }
+
+            // Create a text file Blob
+            var blob = new Blob([dataString], { type: 'text/plain' });
+
+            // Create a downloadable link
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'form_data.txt'; // File name for download
+            document.body.appendChild(a);
+            a.click(); // Trigger download
+            document.body.removeChild(a); // Clean up
+            URL.revokeObjectURL(url); // Free up memory
+        });
+    </script>
+</body>
+</html>
