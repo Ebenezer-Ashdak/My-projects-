@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Play Sound Example</title>
+</head>
+<body>
+
+  <!-- Button the user clicks -->
+  <button onclick="playSound()">Play Sound</button>
+
+  <!-- Audio element with a sound file -->
+  <audio id="clickSound" src="/storage/emulated/0/Xender/video/GOJO RAP _ _Running in Blind_ _ RUSTAGE ft. McGwire [JJK].mp3"></audio>
+
+  <script>
+    // Function that plays the sound
+    function playSound() {
+      const audio = document.getElementById("clickSound");
+      audio.play();
+    }
+  </script>
+
+</body>
+</html>
